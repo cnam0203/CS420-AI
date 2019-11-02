@@ -248,7 +248,6 @@ void checkBlock(Block &block, int kind, int x, int y, bool &isWumpDied, Position
                                     isWumpDied = true;
                                     isDetected = true;
                                     wumPos.setPos(x, y);
-                                    cout<<"block "<<x<<","<<y<<endl;
                                     block.setOk();
                                     block.setPredicted();
                                     return;
@@ -296,7 +295,6 @@ void checkBlock(Block &block, int kind, int x, int y, bool &isWumpDied, Position
                                     isWumpDied = true;
                                     isDetected = true;
                                     wumPos.setPos(x, y);
-                                    cout<<"block "<<x<<","<<y<<endl;
                                     block.setOk();
                                     block.setPredicted();
                                     return;
