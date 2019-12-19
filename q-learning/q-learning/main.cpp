@@ -36,34 +36,32 @@ public:
 };
 
 
-bool checkAdjacent(int x1, int y1, int x2, int y2) {
-    if (x1 == x2 + 1 && y1 == y2)
-        return true;
-    if (x1 == x2 - 1 && y1 == y2)
-        return true;
-    if (x1 == x2 && y1 == y2 + 1)
-        return true;
-    if (x1 == x2 && y1 == y2 - 1)
-        return true;
-    return false;
+bool checkAdjacent(int x2, int y2, int size) {
+    if (x2 < 0 || y2 < 0 || x2 >= size || y2 >= size)
+        return false;
+    return true;
 }
 
 class Block {
 private:
     Position pos1, pos2;
-    float reward = -1;
+    float reward = -5;
 public:
-    void setBlock(int x1, int y1, int x2, int y2, float value) {
+    void setBlock(int x1, int y1, int x2, int y2, int **map, int size) {
         this->pos1.setValue(x1, y1);
         this->pos2.setValue(x2, y2);
         
-        if (checkAdjacent(x1, y1, x2, y2)) {
+        if (checkAdjacent(x2, y2, size)) {
+            
+            int value = map[x2][y2];
             if (value == 5 || value == 6)
                 this->reward = -100;
             else if (value == 1)
                 this->reward = 100;
-            else
+            else if (value == 2 || value == 3 || value == 4)
                 this->reward = 0;
+            else
+                this->reward = 1;
         }
     }
     
@@ -194,157 +192,150 @@ int getNumGold(int **arr, int size) { // Trả về số lượng vàng
     return num;
 }
 
+void createQTable(int **map, Block **arrInitBlock, int size) {
+    int count1 = 0;
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            arrInitBlock[count1] = new Block [4];
+            int count2 = 0;
+            arrInitBlock[count1][count2++].setBlock(i, j, i+1, j, map, size);
+            arrInitBlock[count1][count2++].setBlock(i, j, i-1, j, map, size);
+            arrInitBlock[count1][count2++].setBlock(i, j, i, j+1, map, size);
+            arrInitBlock[count1][count2++].setBlock(i, j, i, j-1, map, size);
+            count1++;
+        }
+    }
+}
+
+void createPredictTable(int **predict, int size) {
+    for (int i = 0; i < size*size; i++) {
+        predict[i] = new int [4];
+        for (int j = 0; j < 4; j++) {
+            predict[i][j] = 0;
+        }
+    }
+}
+
+int getRow(Block **arrBlock, int size, Position init) {
+    for (int i = 0; i < size*size; i++) {
+        for (int j = 0; j < 4; j++) {
+            int x = arrBlock[i][j].getPos1().getX();
+            int y = arrBlock[i][j].getPos1().getY();
+            if (x == init.getX() && y == init.getY()) {
+                return i;          // Lấy vị trí hàng chứa initial state
+            }
+        }
+    }
+    return 0;
+}
+
+int getRandomState(Block **arrBlock, int size, int row) {
+    int randCount  = 0;
+    for (int i = 0; i < 4; i++) {
+        if (arrBlock[row][i].getReward() >= 0)  // Xét những ô có thể đi tiếp
+            randCount++;
+    }
+    
+    // Chọn random state tiếp theo
+    int* arrRand = new int [randCount];
+    int updateCount = 0;
+    for (int i = 0; i < 4; i++) {
+        if (arrBlock[row][i].getReward() >= 0) {
+            arrRand[updateCount] = i;
+            updateCount++;
+        }
+    }
+    int randCol =  rand() % randCount;
+    return arrRand[randCol];
+}
+
+int getMaxReward(Block **arrBlock, int **predict, int size, int row, Position newState, int max) {
+    for (int i = 0; i < size*size; i++) {
+        for (int j = 0; j < 4; j++) {
+            int x = arrBlock[i][j].getPos1().getX();
+            int y = arrBlock[i][j].getPos1().getY();
+            int reward = arrBlock[i][j].getReward();
+            if (x == newState.getX() && y == newState.getY() && reward >= 0) {
+                if (predict[i][j] >= max) {
+                    max = predict[i][j];
+                }
+            }
+        }
+    }
+    return max;
+}
+
+void updateQTable(Block **arrBlock, int size, int &count, Position newState, int randIndex, int row) {
+    if (arrBlock[row][randIndex].getReward() == 100) {
+        count--;
+        for (int i = 0; i < size*size; i++) {
+            for (int j = 0; j < 4; j++) {
+                int x2 = arrBlock[i][j].getPos2().getX();
+                int y2 = arrBlock[i][j].getPos2().getY();
+                int choosenX = newState.getX();
+                int choosenY = newState.getY();
+                int value = arrBlock[i][j].getReward();
+                if (x2 == choosenX && y2 == choosenY && value == 100) {
+                    arrBlock[i][j].setReward(0);
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, const char * argv[]) {
     // insert code here...
-    int size = readSize("map1.txt");
-    string **inputArr = readFile("map1.txt");
+    int size = readSize("map4.txt");
+    string **inputArr = readFile("map4.txt");
     
     if (inputArr) {
         int **map = convertInt(inputArr, size);
-        Block **arrInitBlock = new Block*[size*size];
-        int count1 = 0;
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                arrInitBlock[count1] = new Block [size*size];
-                int x1 = i;
-                int y1 = j;
-                int count2 = 0;
-                for (int z = 0; z < size; z++) {
-                    for (int t = 0; t < size; t++) {
-                        int x2 = z;
-                        int y2 = t;
-                        arrInitBlock[count1][count2].setBlock(x1, y1, x2, y2, map[x2][y2]);
-                        count2++;
-                    }
-                }
-                count1++;
-            }
-        }
+         int **predict = new int*[size*size];
+        createPredictTable(predict, size);
         
-        for (int i = 0; i < size*size; i++) {
-            for (int j = 0; j < size*size; j++)
-                cout<<arrInitBlock[i][j].getReward()<<" ";
-            cout<<endl;
-        }
-        
-        int **predict = new int*[size*size];
-        for (int i = 0; i < size*size; i++) {
-            predict[i] = new int [size*size];
-            for (int j = 0; j < size*size; j++) {
-                predict[i][j] = 0;
-            }
-        }
-        
-        int epsilon = 1000;
        
-        while (epsilon >= 0) {
+        int epsilon = 300;
+       
+        while (epsilon > 0) {
             epsilon--;
             
             Block **arrBlock = new Block*[size*size];
-            for (int i = 0; i < size*size; i++) {
-                arrBlock[i] = new Block[size*size];
-                for (int j = 0; j < size*size; j++) {
-                    arrBlock[i][j].copyBlock(arrInitBlock[i][j]);
-                }
-            }
+            createQTable(map, arrBlock, size);
             
             int count = getNumGold(map, size);    // Lấy số lượng vàng
+            int goal = getNumGold(map, size);
             int step = 0;
-            int row = 0;
+            
             Position init = getInitPos(map, size); // Lấy vị trí ban đầu
-            Block currentBlock;
-            for (int i = 0; i < size*size; i++) {
-                for (int j = 0; j < size*size; j++) {
-                    int x = arrBlock[i][j].getPos1().getX();
-                    int y = arrBlock[i][j].getPos1().getY();
-                    if (x == init.getX() && y == init.getY()) {
-                        row = i;                  // Lấy vị trí hàng chứa initial state
-                        break;
-                    }
-                }
-            }
+            int row = getRow(arrBlock, size, init);
+            if (epsilon == 0)
+                cout<<step<<" "<<"("<<init.getX()<<","<<init.getY()<<")"<<endl;
+            step = 1;
             
             while(!(count == 0 || step > 150)) {  // Khi chưa đạt đến goal state hoặc đi nhiều hơn 150 steps
-                int randCount  = 0;
-                for (int i = 0; i < size*size; i++) {
-                    if (arrBlock[row][i].getReward() >= 0)  // Xét những ô có thể đi tiếp
-                        randCount++;
-                }
                 
-                // Chọn random state tiếp theo
-                int* arrRand = new int [randCount];
-                int updateCount = 0;
-                for (int i = 0; i < size*size; i++) {
-                    if (arrBlock[row][i].getReward() >= 0) {
-                        arrRand[updateCount] = i;
-                        updateCount++;
-                    }
-                }
-                int randCol = rand() % randCount;
-                int randIndex = arrRand[randCol];
-                if (epsilon == 0) {
-                    cout<<"("<<arrBlock[row][randIndex].getPos2().getX()<<","<<arrBlock[row][randIndex].getPos2().getY()<<")"<<endl;
-                }
+                int randIndex = getRandomState(arrBlock, size, row);
+                
                 // Set position cho new Random State
                 Position newState;
                 newState.setValue(arrBlock[row][randIndex].getPos2().getX(), arrBlock[row][randIndex].getPos2().getY());
-                int max = -10000;
+                
                 
                 // Chọn ra max Q
-                for (int i = 0; i < size*size; i++) {
-                    for (int j = 0; j < size*size; j++) {
-                        int x = arrBlock[i][j].getPos1().getX();
-                        int y = arrBlock[i][j].getPos1().getY();
-                        int reward = arrBlock[i][j].getReward();
-                        if (x == newState.getX() && y == newState.getY() && reward >= 0) {
-                            if (predict[i][j] >= max) {
-                                max = predict[i][j];
-                            }
-                        }
-                    }
-                }
+                int max = getMaxReward(arrBlock, predict, size, row, newState, -10000);
                 
                 // Cập nhật Q
                 predict[row][randIndex] = arrBlock[row][randIndex].getReward() + 0.6*max;
                 
                 // Nếu như ô tiếp theo là ô được chọn là goal => reward = 0
-                if (arrBlock[row][randIndex].getReward() == 100) {
-                    count--;
-                    for (int i = 0; i < size*size; i++) {
-                        for (int j = 0; j < size*size; j++) {
-                            int x2 = arrBlock[i][j].getPos2().getX();
-                            int y2 = arrBlock[i][j].getPos2().getY();
-                            int choosenX = newState.getX();
-                            int choosenY = newState.getY();
-                            int value = arrBlock[i][j].getReward();
-                            if (x2 == choosenX && y2 == choosenY && value == 100) {
-                                arrBlock[i][j].setReward(0);
-                            }
-                        }
-                    }
-                }
+                updateQTable(arrBlock, size, count, newState, randIndex, row);
+                
                 // Chọn ra hàng chứa newState
-                for (int i = 0; i < size*size; i++) {
-                    for (int j = 0; j < size*size; j++) {
-                        int x = arrBlock[i][j].getPos1().getX();
-                        int y = arrBlock[i][j].getPos1().getY();
-                        int choosenX = newState.getX();
-                        int choosenY = newState.getY();
-                        if (x == choosenX && y == choosenY) {
-                            row = i;
-                            break;
-                        }
-                    }
-                }
+                row = getRow(arrBlock, size, newState);
+                
+                if (epsilon == 0)
+                    cout<<step<<" "<<"("<<newState.getX()<<","<<newState.getY()<<")"<<" "<<goal-count<<"/"<<goal<<endl;
                 step++;
-            }
-            if (epsilon == 0) {
-                for (int i = 0; i < size*size; i++) {
-                           for (int j = 0; j < size*size; j++)
-                               cout<<predict[i][j]<<" ";
-                           cout<<endl;
-                }
-                cout<<step<<endl;
             }
         }
     }
