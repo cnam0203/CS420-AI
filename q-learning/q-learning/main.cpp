@@ -10,8 +10,8 @@
 #include <string>
 #include <fstream>
 #include <stdlib.h>
-#include <time.h>
-
+#include <ctime>
+#include <cstring>
 
 using namespace std;
 
@@ -58,10 +58,8 @@ public:
                 this->reward = -100;
             else if (value == 1)
                 this->reward = 100;
-            else if (value == 2 || value == 3 || value == 4)
-                this->reward = 0;
             else
-                this->reward = 1;
+                this->reward = 0;
         }
     }
     
@@ -119,6 +117,8 @@ string** readFile(string fileName) {
         return NULL;
     }
 }
+
+
 
 int readSize(string fileName) {
     string line;
@@ -245,7 +245,10 @@ int getRandomState(Block **arrBlock, int size, int row) {
             updateCount++;
         }
     }
+    
+//    srand ((unsigned int)time(NULL));
     int randCol =  rand() % randCount;
+    
     return arrRand[randCol];
 }
 
@@ -283,10 +286,32 @@ void updateQTable(Block **arrBlock, int size, int &count, Position newState, int
     }
 }
 
+void printPredict(int **predict, int size, ofstream &fout) {
+    fout<<"Predict table:"<<endl;
+    fout<<"      Down  Up    Right Left"<<endl;
+    for (int i = 0; i < size*size; i++) {
+        int row = i/size;
+        int col = i%size;
+        fout<<row+1<<","<<col+1<<"   ";
+        for (int j = 0 ; j < 4; j++) {
+            fout<<predict[i][j];
+            string stringPre = to_string(predict[i][j]);
+            int lengthStr = stringPre.length();
+            for (int j = 6 - lengthStr; j > 0; j--) {
+                fout<<" ";
+            }
+        }
+        fout<<endl;
+    }
+}
+
 int main(int argc, const char * argv[]) {
     // insert code here...
-    int size = readSize("map4.txt");
-    string **inputArr = readFile("map4.txt");
+    int size = readSize("map5.txt");
+    string **inputArr = readFile("map5.txt");
+    srand((unsigned)(time(0)));
+    ofstream fout;
+    fout.open("output.txt");
     
     if (inputArr) {
         int **map = convertInt(inputArr, size);
@@ -294,7 +319,7 @@ int main(int argc, const char * argv[]) {
         createPredictTable(predict, size);
         
        
-        int epsilon = 300;
+        int epsilon = 200;
        
         while (epsilon > 0) {
             epsilon--;
@@ -309,7 +334,7 @@ int main(int argc, const char * argv[]) {
             Position init = getInitPos(map, size); // Lấy vị trí ban đầu
             int row = getRow(arrBlock, size, init);
             if (epsilon == 0)
-                cout<<step<<" "<<"("<<init.getX()<<","<<init.getY()<<")"<<endl;
+                fout<<step<<" "<<"("<<init.getX()+1<<","<<init.getY()+1<<")"<<endl;
             step = 1;
             
             while(!(count == 0 || step > 150)) {  // Khi chưa đạt đến goal state hoặc đi nhiều hơn 150 steps
@@ -325,7 +350,7 @@ int main(int argc, const char * argv[]) {
                 int max = getMaxReward(arrBlock, predict, size, row, newState, -10000);
                 
                 // Cập nhật Q
-                predict[row][randIndex] = arrBlock[row][randIndex].getReward() + 0.6*max;
+                predict[row][randIndex] = arrBlock[row][randIndex].getReward() + 0.89*max;
                 
                 // Nếu như ô tiếp theo là ô được chọn là goal => reward = 0
                 updateQTable(arrBlock, size, count, newState, randIndex, row);
@@ -333,11 +358,15 @@ int main(int argc, const char * argv[]) {
                 // Chọn ra hàng chứa newState
                 row = getRow(arrBlock, size, newState);
                 
-                if (epsilon == 0)
-                    cout<<step<<" "<<"("<<newState.getX()<<","<<newState.getY()<<")"<<" "<<goal-count<<"/"<<goal<<endl;
+                if (epsilon == 0) {
+                    fout<<step<<" "<<"("<<newState.getX()+1<<","<<newState.getY()+1<<")"<<" "<<goal-count<<"/"<<goal<<endl;
+                    
+                }
                 step++;
             }
         }
+        printPredict(predict, size, fout);
+        fout.close();
     }
     return 0;
 }
