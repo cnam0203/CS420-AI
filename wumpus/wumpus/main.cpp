@@ -3,6 +3,15 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <unistd.h>
+#include <stdlib.h> 
+#include <thread>
+#include <chrono>
+
+#define RESET   "\033[0m"
+#define RED     "\033[31m"      
+#define GREEN   "\033[32m"      
+#define YELLOW  "\033[33m" 
 
 using namespace std;
 
@@ -248,6 +257,7 @@ bool limitPos(int x, int y, int size) {  // Xét xem position có vượt khỏi
 }
 
 void checkBlock(Block &block, int kind, int x, int y, int size) {
+       
         if (!block.isOk()) { // Nếu như block sắp predict đã chắc chắn an toàn trước đó thì khỏi predict
             switch (kind) {  // Xét block đang đứng type nào ( S, B , BS, G , A hay whitespace)
             case 1: // Nếu ô đang đứng là gold thì ô xung quanh an toàn + đã được predict
@@ -279,7 +289,9 @@ void checkBlock(Block &block, int kind, int x, int y, int size) {
             case 4: // Nếu ô đang đứng là SB
                     block.setWump(true);
                     block.setPit(true);
-                    block.setPredicted();
+                    if (!block.isPredicted()) {
+                        block.setPredicted();
+                    }
                 break;
             case 5:
                 break;
@@ -381,10 +393,38 @@ void setNextStep(Position &pos, Stack &stackPos, Block **block, int x, int y, bo
     return;
 }
 
+void printMap(Block **arrBlock, int size, int x, int y) {
+    for (int i = 0 ; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (i == x && j == y) {
+                cout<<YELLOW<<"A"<<RESET<<" ";
+            }
+            else {
+                if (arrBlock[i][j].isOk()) {
+                    cout<<"."<<" ";
+                }
+                else if (arrBlock[i][j].isPit()) {
+                    cout<<RED<<"P"<<RESET<<" ";
+                }
+                else if (arrBlock[i][j].isWump()) {
+                    cout<<GREEN<<"W"<<RESET<<" ";
+                }
+                else {
+                    cout<<"."<<" ";
+                }
+            }
+        }
+        cout<<endl;
+    }
+    cout<<endl;
+}
+
 int main(int argc, const char * argv[]) {
     
-    int size = readSize("map3.txt");
-    string **inputArr = readFile("map3.txt");
+    int size = readSize("map5.txt");
+    string **inputArr = readFile("map5.txt");
+    ofstream fout;
+    fout.open("output.txt");
 
     if (inputArr) {
         int **map = convertInt(inputArr, size);
@@ -419,8 +459,7 @@ int main(int argc, const char * argv[]) {
             }
 
             else {
-
-                if (arrBlock[x][y].isVisited()==0) {
+                if (arrBlock[x][y].isVisited() == 0) {
 
                     if (map[x][y] == 1)
                         gold+=100;
@@ -433,16 +472,20 @@ int main(int argc, const char * argv[]) {
                 setNextStep(pos, stackPos, arrBlock, x, y, isUpdateStep,i, size);
                 if (!isUpdateStep)
                     break;
-                cout << "At step " << step + 1 << ": (" << pos.getX()+1 << ", " << pos.getY()+1 << "), score: " << gold << endl;
+                fout << "At step " << step + 1 << ": (" << pos.getX()+1 << ", " << pos.getY()+1 << "), score: " << gold << endl;
+                printMap(arrBlock, size, x, y);
+                this_thread::sleep_for(chrono::milliseconds(500));
             }
             step++;
         }
+
         if (!isUpdateStep)
             cout << "Unable to move" << endl;
         else {
-            while (i>0)
-            {
-                cout << "At step " << 150-i+1 << ": (" << stackPos.getPop().getX() + 1<< ", " << stackPos.getPop().getY() + 1<< "), score: " << gold << endl;
+            while (i > 0) {
+                fout << "At step " << 150-i+1 << ": (" << stackPos.getPop().getX() + 1<< ", " << stackPos.getPop().getY() + 1<< "), score: " << gold << endl;
+                printMap(arrBlock, size, stackPos.getPop().getX(), stackPos.getPop().getY());
+                this_thread::sleep_for(chrono::milliseconds(500));
                 if (i == 1)
                 {
                     pos = stackPos.getPop();
@@ -450,13 +493,18 @@ int main(int argc, const char * argv[]) {
                  }
                 stackPos.Pop();
                 i--;
-                
             }
         }
-        if (map[pos.getX()][pos.getY()]!=7)
+
+        if (map[pos.getX()][pos.getY()] != 7)
             cout << "The agent is trapped and die" << endl;
-        else cout << "The agent surpass the level" << endl;
+        else 
+            cout << "The agent surpass the level" << endl;
         cout << step << ", score: " << gold << "/" << numGold*100 << endl;
+
+        fout<<"Score: "<<gold<<"/"<<numGold*100<<endl;
+        fout.close();
+
         system("pause");
         return 0;
     }
