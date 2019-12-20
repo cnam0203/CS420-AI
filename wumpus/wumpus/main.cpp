@@ -205,7 +205,7 @@ int** convertInt(string **arrStr, int size) {
                 arrInt[size-1-i][j] = 2;
             else if (arrStr[size-1-i][j].compare("B") == 0)
                 arrInt[size-1-i][j] = 3;
-            else if (arrStr[size-1-i][j].compare("SB") == 0)
+            else if (arrStr[size-1-i][j].compare("BS") == 0)
                 arrInt[size-1-i][j] = 4;
             else if (arrStr[size-1-i][j].compare("W") == 0)
                 arrInt[size-1-i][j] = 5;
