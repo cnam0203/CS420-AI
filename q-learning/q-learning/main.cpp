@@ -13,7 +13,6 @@
 #include <ctime>
 #include <cstring>
 
-#include <unistd.h>
 #include <thread>
 #include <chrono>
 
@@ -221,7 +220,7 @@ int getNumGold(int **arr, int size) { // Trả về số lượng vàng
     return num;
 }
 
-void createQTable(int **map, Block **arrInitBlock, int size) {
+void createRewardTable(int **map, Block **arrInitBlock, int size) {
     int count1 = 0;
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
@@ -236,7 +235,7 @@ void createQTable(int **map, Block **arrInitBlock, int size) {
     }
 }
 
-void createPredictTable(int **predict, int size) {
+void createQTable(int **predict, int size) {
     for (int i = 0; i < size*size; i++) {
         predict[i] = new int [4];
         for (int j = 0; j < 4; j++) {
@@ -415,7 +414,7 @@ int main(int argc, const char * argv[]) {
     if (inputArr) {
         int **map = convertInt(inputArr, size);
          int **predict = new int*[size*size];
-        createPredictTable(predict, size);
+        createQTable(predict, size);
         
        
         int epsilon = 1000;
@@ -423,7 +422,7 @@ int main(int argc, const char * argv[]) {
         while (epsilon > 0) {
             epsilon--;
             Block **arrBlock = new Block*[size*size];
-            createQTable(map, arrBlock, size);
+            createRewardTable(map, arrBlock, size);
             
             int count = getNumGold(map, size);    // Lấy số lượng vàng
             int step = 0;
