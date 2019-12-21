@@ -384,19 +384,31 @@ void checkBlock(Block &block, int kind, int x, int y, string direct, int size, i
 	return;
 }
 
-void predictBlock(Block **&arrBlock, int x, int y, int kind, int size, int &score, int &shot_x, int & shot_y) {
+void predictBlock(Block **&arrBlock, int x, int y, int kind, int size, int &score, int &shot_x, int & shot_y, int& cur) {
 
-	checkBlock(arrBlock[x][y - 1], kind, x, y - 1, "<-", size, score, shot_x, shot_y ); // Predict thằng bên trái
+	if (cur == 1)
+	{
+		checkBlock(arrBlock[x][y - 1], kind, x, y - 1, "<-", size, score, shot_x, shot_y); // Predict thằng bên trái
+		cur++;
+	}
 	if (shot_x == -1 && shot_y == -1)
 	{
-		checkBlock(arrBlock[x][y + 1], kind, x, y + 1, "->", size, score, shot_x, shot_y); // Predict thằng bên phải
+		if (cur == 2)
+		{
+			checkBlock(arrBlock[x][y + 1], kind, x, y + 1, "->", size, score, shot_x, shot_y); // Predict thằng bên phải
+			cur++;
+		}
 		//if (isDetected) { // Nếu như thằng Wumpus đã detect được nằm trong block này, thì những block predicted trước đó được xem xét lại,
 		//	checkBlock(arrBlock[x][y - 1], kind, x, y - 1, "<-", size, score, shot_x, shot_y);
 		//}
 		if (shot_x == -1 && shot_y == -1)
 		{
 
-			checkBlock(arrBlock[x - 1][y], kind, x - 1, y, "|v", size, score, shot_x, shot_y); // Predict thằng phía trên
+			if (cur == 3)
+			{
+				checkBlock(arrBlock[x - 1][y], kind, x - 1, y, "|v", size, score, shot_x, shot_y); // Predict thằng phía trên
+				cur++;
+			}
 			//if (isDetected) { // Tương tự
 			//	checkBlock(arrBlock[x][y - 1], kind, x, y - 1, isDetected, "<-", size);
 			//	checkBlock(arrBlock[x][y + 1], kind, x, y + 1, isDetected, "->", size);
@@ -404,7 +416,10 @@ void predictBlock(Block **&arrBlock, int x, int y, int kind, int size, int &scor
 			if (shot_x == -1 && shot_y == -1)
 			{
 
-				checkBlock(arrBlock[x + 1][y], kind, x + 1, y, "|^", size, score, shot_x, shot_y); // Predict thằng phía dưới
+				if (cur == 4)
+				{
+					checkBlock(arrBlock[x + 1][y], kind, x + 1, y, "|^", size, score, shot_x, shot_y); // Predict thằng phía dưới
+				}
 				//if (isDetected) { // Tương tự
 				//	checkBlock(arrBlock[x][y - 1], kind, x, y - 1, isDetected, "<-", size);
 				//	checkBlock(arrBlock[x][y + 1], kind, x, y + 1, isWumpDied, isDetected, "->", size);
@@ -425,72 +440,55 @@ bool compareStep(int x, int y, int oldX, int oldY, int size) {
 	return true;
 }
 
-void setNextStep(Position &pos, Stack &stackPos, Block **block, int x, int y, bool &isUpdateStep, int &i, int size) {
+void setNextStep(Position &pos, Stack &stackPos, Block **block, int x, int y, bool &isUpdateStep, int &i, int size)
+{
 
 	int oldX, oldY;
 
-	if (stackPos.isEmpty()) {
+	if (stackPos.isEmpty()) 
+	{
 		oldX = x;
 		oldY = y;
 	}
 
-	else {
+	else 
+	{
 		Position posTop = stackPos.getPop();
 		oldX = posTop.getX();
 		oldY = posTop.getY();
 	}
-	int priority=0;
-	Position prio;
-	if (compareStep(x, y + 1, oldX, oldY, size) && block[x][y + 1].isOk())
+	if (compareStep(x, y + 1, oldX, oldY, size) && block[x][y + 1].isOk()&& block[x][y + 1].isVisited() == 0)
 	{
-		if (block[x][y + 1].isVisited() == 0) {
 			pos.setPos(x, y + 1);
 			Position newPos;
 			newPos.setPos(x, y);
 			stackPos.Push(newPos);
 			i = i + 1;
 			return;
-		}
-		else
-		{
-			priority = block[x][y + 1].isVisited();
-			prio.setPos(x, y + 1);
-		}
+		
 	}
-	if (compareStep(x, y - 1, oldX, oldY, size) && block[x][y - 1].isOk()) {
-		if (block[x][y - 1].isVisited() == 0) {
+	if (compareStep(x, y - 1, oldX, oldY, size) && block[x][y - 1].isOk()&&block[x][y - 1].isVisited() == 0) 
+	{
 			pos.setPos(x, y - 1);
 			Position newPos;
 			newPos.setPos(x, y);
 			stackPos.Push(newPos);
 			i = i + 1;
 			return;
-		}
-		else if (block[x][y - 1].isVisited() < priority)
-		{
-			priority = block[x][y - 1].isVisited();
-			prio.setPos(x, y - 1);
-		}
 	}
+		
 
-	if (compareStep(x + 1, y, oldX, oldY, size) && block[x + 1][y].isOk())
+	if (compareStep(x + 1, y, oldX, oldY, size) && block[x + 1][y].isOk()&&block[x + 1][y].isVisited() == 0)
 	{
-		if (block[x + 1][y].isVisited() == 0) {
-			pos.setPos(x + 1, y);
+			pos.setPos(x+1,y);
 			Position newPos;
 			newPos.setPos(x, y);
 			stackPos.Push(newPos);
 			i = i + 1;
 			return;
-		}
-		else if (block[x + 1][y].isVisited() < priority)
-		{
-			priority = block[x + 1][y].isVisited();
-			prio.setPos(x + 1, y);
-		}
 	}
-	if (compareStep(x - 1, y, oldX, oldY, size) && block[x - 1][y].isOk()){
-		if (block[x - 1][y].isVisited() == 0) {
+		
+	if (compareStep(x - 1, y, oldX, oldY, size) && block[x - 1][y].isOk()&&block[x - 1][y].isVisited() == 0) {
 			pos.setPos(x - 1, y);
 			Position newPos;
 			newPos.setPos(x, y);
@@ -498,23 +496,7 @@ void setNextStep(Position &pos, Stack &stackPos, Block **block, int x, int y, bo
 			i = i + 1;
 			return;
 		}
-		else if (block[x-1][y].isVisited() < priority)
-		{
-			priority = block[x-1][y].isVisited();
-			prio.setPos(x-1, y );
-		}
-	}
-
-	if (priority != 0)
-	{
-		pos.setPos(prio.getX(), prio.getY());
-		Position newPos;
-		newPos.setPos(x, y);
-		stackPos.Push(newPos);
-		i = i + 1;
-		return;
-	}
-	else if (!stackPos.isEmpty()&&(oldX!=x||oldY!=y)) {
+		if (!stackPos.isEmpty() && (oldX != x || oldY != y)) {
 		stackPos.Pop();
 		pos.setPos(oldX, oldY);
 		i = i - 1;
@@ -528,8 +510,8 @@ void setNextStep(Position &pos, Stack &stackPos, Block **block, int x, int y, bo
 
 int main(int argc, const char * argv[]) {
 
-	int size = readSize("map3.txt");
-	string **inputArr = readFile("map3.txt");
+	int size = readSize("mapmap.txt");
+	string **inputArr = readFile("mapmap.txt");
 
 	if (inputArr) {
 		int **map = convertInt(inputArr, size);
@@ -555,7 +537,7 @@ int main(int argc, const char * argv[]) {
 		while ((step + i) != 150 && !isAgentDied) {
 			int x = pos.getX();
 			int y = pos.getY();
-
+			int cur = 1;
 			if (map[x][y] == 6) { // Agent in wumpus or pit position
 				isAgentDied = true;
 				gold = gold - 10000;
@@ -573,27 +555,27 @@ int main(int argc, const char * argv[]) {
 					if (map[x][y] == 1)
 						gold += 100;
 
-					
+
 				}
 				arrBlock[x][y].setVisited();
 				arrBlock[x][y].setOk();
-				predictBlock(arrBlock, x, y, map[x][y], size, gold, shot_x, shot_y);
+				predictBlock(arrBlock, x, y, map[x][y], size, gold, shot_x, shot_y,cur);
 				while (shot_x != -1 && shot_y != -1) //agent shot in checkblock function
 				{
 					if (!cheating(x, y, shot_x, shot_y))
 					{
 						if (map[shot_x][shot_y] == 5)
 						{
-							cout << "Nice shot! " <<endl;
+							cout << "Nice shot! " << endl;
 							arrBlock[shot_x][shot_y].setRealDead();
 							map[shot_x][shot_y] = 0;
 						}
 						else
 						{
-							cout << "Wumpus is not here" <<endl;
+							cout << "Wumpus is not here" << endl;
 						}
 						shot_x = shot_y = -1;
-						predictBlock(arrBlock, x, y, map[x][y], size, gold, shot_x, shot_y);
+						predictBlock(arrBlock, x, y, map[x][y], size, gold, shot_x, shot_y,cur);
 					}
 					else
 					{
@@ -602,21 +584,24 @@ int main(int argc, const char * argv[]) {
 
 				}
 				setNextStep(pos, stackPos, arrBlock, x, y, isUpdateStep, i, size);
-				
-			
+
+
 				if (isUpdateStep)
-					cout << "At step " << step + 1 << ": (" << pos.getY() + 1 << ", " << pos.getX() + 1 << "), score: " << gold << " and " <<map[pos.getX()][pos.getY()]<< endl;
+					cout << "At step " << step + 1 << ": (" << pos.getY() + 1 << ", " << pos.getX() + 1 << "), score: " << gold << " and " << map[pos.getX()][pos.getY()] << endl;
 				else
 					break;
-				
+
 			}
 			step++;
 		}
-		
+
 		if (!isAgentDied) {
 			if (!isUpdateStep)
 			{
-				cout << "Unable to move" << endl;
+				if (map[pos.getX()][pos.getY()] != 7)
+					cout << "Unable to move" << endl;
+				else
+					cout << "The agent has reach its optimal pathway" << endl;
 			}
 			else {
 
@@ -633,12 +618,12 @@ int main(int argc, const char * argv[]) {
 				}
 			}
 		}
-			if (isAgentDied)
-				cout << "Agent is gone " << endl;
-			else if (map[pos.getX()][pos.getY()] != 7||!isUpdateStep)
-				cout << "The agent is trapped and die" << endl;
-			else cout << "The agent surpass the level" << endl;
-		cout  << "Total score: " << gold << endl;
+		if (isAgentDied)
+			cout << "Agent is gone " << endl;
+		else if (map[pos.getX()][pos.getY()] != 7 && !isUpdateStep)
+			cout << "The agent is trapped and die" << endl;
+		else cout << "The agent surpass the level" << endl;
+		cout << "Total score: " << gold << endl;
 		system("pause");
 		return 0;
 	}
