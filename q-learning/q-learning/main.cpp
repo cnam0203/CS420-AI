@@ -13,11 +13,20 @@
 #include <ctime>
 #include <cstring>
 
+#include <unistd.h>
+#include <thread>
+#include <chrono>
+
+#define RESET   "\033[0m"
+#define YELLOW  "\033[33m"
+
+
 using namespace std;
 
 class Position {
 private:
     int x, y = 0;
+    bool visited = false;
 public:
     Position() {
         this->x = 0;
@@ -33,7 +42,27 @@ public:
     int getY() {
         return this->y;
     }
-};
+    bool isVisted() {
+        return this->visited;
+    }
+    void setVisited() {
+        this->visited = true;
+    }
+ };
+
+void printMap(int size, int x, int y) {
+    for (int i = 0 ; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (i == x && j == y) {
+                cout<<YELLOW<<"A"<<RESET<<" ";
+            }
+            else
+                cout<<"."<<" ";
+        }
+        cout<<endl;
+    }
+    cout<<endl;
+}
 
 
 bool checkAdjacent(int x2, int y2, int size) {
@@ -59,7 +88,7 @@ public:
             else if (value == 1)
                 this->reward = 100;
             else
-                this->reward = 1;
+                this->reward = 0;
         }
     }
     
@@ -232,10 +261,11 @@ int getRow(Block **arrBlock, int size, Position init) {
 int getRandomState(Block **arrBlock, int size, int row) {
     int randCount  = 0;
     for (int i = 0; i < 4; i++) {
-        if (arrBlock[row][i].getReward() >= 0)  // Xét những ô có thể đi tiếp
+        
+        if (arrBlock[row][i].getReward() >= 0 )  // Xét những ô có thể đi tiếp
             randCount++;
     }
-    
+
     // Chọn random state tiếp theo
     int* arrRand = new int [randCount];
     int updateCount = 0;
@@ -248,7 +278,6 @@ int getRandomState(Block **arrBlock, int size, int row) {
     
 //    srand ((unsigned int)time(NULL));
     int randCol =  rand() % randCount;
-    
     return arrRand[randCol];
 }
 
@@ -259,7 +288,7 @@ int getMaxReward(Block **arrBlock, int **predict, int size, int row, Position ne
             int y = arrBlock[i][j].getPos1().getY();
             int reward = arrBlock[i][j].getReward();
             if (x == newState.getX() && y == newState.getY()) {
-                if (predict[i][j] >= max) {
+                if (predict[i][j] > max) {
                     max = predict[i][j];
                 }
             }
@@ -286,6 +315,19 @@ void updateQTable(Block **arrBlock, int size, int &count, Position newState, int
     }
 }
 
+Position* findGoldPos(int **map, int size, int goal) {
+    Position* arrGold = new Position[goal];
+    int count = 0;
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (map[i][j] == 1) {
+                arrGold[count++].setValue(i, j);
+            }
+        }
+    }
+    return arrGold;
+}
+
 void printPredict(int **predict, int size, ofstream &fout) {
     fout<<"Predict table:"<<endl;
     fout<<"      Down  Up    Right Left"<<endl;
@@ -305,10 +347,67 @@ void printPredict(int **predict, int size, ofstream &fout) {
     }
 }
 
+void findPath(Position initPos, int** predict, int size, Position* arrGold, int numGold, ofstream &fout) {
+    int step = 1;
+    int score = 0;
+    int goal = numGold;
+    Position currentPos;
+    currentPos.setValue(initPos.getX(), initPos.getY());
+    while (step <= 150 && goal > 0) {
+        printMap(size, currentPos.getX(), currentPos.getY());
+        this_thread::sleep_for(chrono::milliseconds(500));
+        for (int i = 0 ; i < numGold; i++) {
+            if (!arrGold[i].isVisted()) {
+                int x1 = currentPos.getX();
+                int y1 = currentPos.getY();
+                int x2 = arrGold[i].getX();
+                int y2 = arrGold[i].getY();
+                if ((x1 == x2) && (y1 == y2)) {
+                    goal--;
+                    score+= 100;
+                    arrGold[i].setVisited();
+                }
+            }
+        }
+        int state = currentPos.getX()*size + currentPos.getY();
+        int max = -2000;
+        int countMax = 0;
+        for (int i = 0; i < 4; i++) {
+            if (predict[state][i] >= max) {
+                max = predict[state][i];
+                countMax = 1;
+            }
+            else if (predict[state][i] == max) {
+                countMax++;
+            }
+        }
+        int* posMax = new int[countMax];
+        int countPos = 0;
+        for (int i = 0; i < 4; i++) {
+            if (predict[state][i] == max) {
+                posMax[countPos] = i;
+            }
+        }
+        int randMax = rand() % countMax;
+        int nextIndex = posMax[randMax];
+        if (nextIndex == 0)
+            currentPos.setValue(currentPos.getX()+1, currentPos.getY());
+        else if (nextIndex == 1)
+            currentPos.setValue(currentPos.getX()-1, currentPos.getY());
+        else if (nextIndex == 2)
+            currentPos.setValue(currentPos.getX(), currentPos.getY()+1);
+        else
+            currentPos.setValue(currentPos.getX(), currentPos.getY()-1);
+        fout<<"Step "<<step<<": next step("<<currentPos.getX()+1<<","<<currentPos.getY()+1<<"),  "<<score<<endl;
+        step++;
+    }
+    fout<<"Score: "<<score<<"/"<<numGold*100<<endl;
+}
+
 int main(int argc, const char * argv[]) {
     // insert code here...
-    int size = readSize("map5.txt");
-    string **inputArr = readFile("map5.txt");
+    int size = readSize("map3.txt");
+    string **inputArr = readFile("map3.txt");
     srand((unsigned)(time(0)));
     ofstream fout;
     fout.open("output.txt");
@@ -319,22 +418,22 @@ int main(int argc, const char * argv[]) {
         createPredictTable(predict, size);
         
        
-        int epsilon = 200;
+        int epsilon = 1000;
        
         while (epsilon > 0) {
             epsilon--;
-            
             Block **arrBlock = new Block*[size*size];
             createQTable(map, arrBlock, size);
             
             int count = getNumGold(map, size);    // Lấy số lượng vàng
-            int goal = getNumGold(map, size);
             int step = 0;
             
-            Position init = getInitPos(map, size); // Lấy vị trí ban đầu
+            int rand1 = rand()%size;
+            int rand2 = rand()%size;
+            
+            Position init; // Lấy vị trí ban đầu
+            init.setValue(rand1, rand2);
             int row = getRow(arrBlock, size, init);
-            if (epsilon == 0)
-                fout<<step<<" "<<"("<<init.getX()+1<<","<<init.getY()+1<<")"<<endl;
             step = 1;
             
             while(!(count == 0 || step > 150)) {  // Khi chưa đạt đến goal state hoặc đi nhiều hơn 150 steps
@@ -350,22 +449,22 @@ int main(int argc, const char * argv[]) {
                 int max = getMaxReward(arrBlock, predict, size, row, newState, -10000);
                 
                 // Cập nhật Q
-                predict[row][randIndex] = arrBlock[row][randIndex].getReward() + 0.89*max;
+                predict[row][randIndex] = arrBlock[row][randIndex].getReward() + 0.9*max;
                 
                 // Nếu như ô tiếp theo là ô được chọn là goal => reward = 0
                 updateQTable(arrBlock, size, count, newState, randIndex, row);
                 
                 // Chọn ra hàng chứa newState
                 row = getRow(arrBlock, size, newState);
-                
-                if (epsilon == 0) {
-                    fout<<step<<" "<<"("<<newState.getX()+1<<","<<newState.getY()+1<<")"<<" "<<goal-count<<"/"<<goal<<endl;
-                    
-                }
                 step++;
             }
         }
         printPredict(predict, size, fout);
+        Position pos = getInitPos(map, size);
+        int numGoal = getNumGold(map, size);
+        Position* goldPos;
+        goldPos = findGoldPos(map, size, numGoal);
+        findPath(pos, predict, size, goldPos, numGoal, fout);
         fout.close();
     }
     return 0;
