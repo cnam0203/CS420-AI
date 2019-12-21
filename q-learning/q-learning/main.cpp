@@ -53,7 +53,9 @@ void printMap(int size, int x, int y) {
     for (int i = 0 ; i < size; i++) {
         for (int j = 0; j < size; j++) {
             if (i == x && j == y) {
-                cout<<YELLOW<<"A"<<RESET<<" ";
+                // If you want color, run by terminal not console screen, comment next line and un-comment next next line
+                cout<<"A"<<" ";
+                // cout<<YELLOW<<"A"<<RESET<<" ";
             }
             else
                 cout<<"."<<" ";
@@ -354,7 +356,7 @@ void findPath(Position initPos, int** predict, int size, Position* arrGold, int 
     currentPos.setValue(initPos.getX(), initPos.getY());
     while (step <= 150 && goal > 0) {
         printMap(size, currentPos.getX(), currentPos.getY());
-        this_thread::sleep_for(chrono::milliseconds(500));
+        this_thread::sleep_for(chrono::milliseconds(250));
         for (int i = 0 ; i < numGold; i++) {
             if (!arrGold[i].isVisted()) {
                 int x1 = currentPos.getX();
