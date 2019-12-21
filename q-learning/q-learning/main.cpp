@@ -59,7 +59,7 @@ public:
             else if (value == 1)
                 this->reward = 100;
             else
-                this->reward = 0;
+                this->reward = 1;
         }
     }
     
@@ -258,7 +258,7 @@ int getMaxReward(Block **arrBlock, int **predict, int size, int row, Position ne
             int x = arrBlock[i][j].getPos1().getX();
             int y = arrBlock[i][j].getPos1().getY();
             int reward = arrBlock[i][j].getReward();
-            if (x == newState.getX() && y == newState.getY() && reward >= 0) {
+            if (x == newState.getX() && y == newState.getY()) {
                 if (predict[i][j] >= max) {
                     max = predict[i][j];
                 }
